@@ -58,7 +58,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TwitterClient.cs" />
+    <Compile Include="Tweet.cs" />
+    <Compile Include="TwitterSearch.cs" />
     <Compile Include="TwitterErrors.cs" />
   </ItemGroup>
   <ItemGroup>
