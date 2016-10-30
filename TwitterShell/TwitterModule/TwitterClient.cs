@@ -17,7 +17,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Management.Automation;
+using System.Management.Automation.Runspaces;
+using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
+using TweetSharp;
 
 namespace TwitterModule
 {
@@ -42,7 +48,55 @@ namespace TwitterModule
             {
                 using (var reader = new StreamReader(ConnectionFile))
                 {
+                    var line = reader.ReadLine();
+                    var tokens = line.Split('|');
+                    if (4 != tokens.Length)
+                    {
+                        throw new FileFormatException($@"'{new FileInfo(ConnectionFile).FullName}' is not a valid connection file!");
+                    }
 
+                    string apiKey = tokens[0];
+                    string apiKeySecret = tokens[1];
+                    string accessToken = tokens[2];
+                    string accessTokenSecret = tokens[3];
+                    
+                    // Connect to twitter
+                    var service = new TwitterService(apiKey, apiKeySecret);
+                    service.AuthenticateWith(accessToken, accessTokenSecret);
+
+                    // Search twitter using await and IAsyncResult from the twitter API
+                    var searchOptions = new SearchOptions();
+                    searchOptions.Q = @"#osint";
+                    searchOptions.Count = 100;
+                    var messages = new List<string>(searchOptions.Count.Value);
+                    Task.Factory.FromAsync(service.Search(searchOptions, (tweets, response) =>
+                    {
+                        switch (response.StatusCode)
+                        {
+                            case HttpStatusCode.OK:
+                                break;
+
+                            default:
+                                if (null != response.Error)
+                                {
+                                    throw new WebException(response.Error.Message);
+                                }
+                                throw new WebException(@"Querying Twitter failed!");
+                        }
+
+                        foreach (var status in tweets.Statuses)
+                        {
+                            messages.Add(status.Text);
+                        }
+                    }), (result) =>
+                    {
+                        // TODO: End action
+                    }).Wait();
+
+                    foreach (var message in messages)
+                    {
+                        WriteObject(message);
+                    }
                 }
             }
             catch (Exception ex)
