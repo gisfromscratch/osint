@@ -35,8 +35,6 @@ namespace TwitterModule
 
         public long Id { get; set; }
 
-        public string IdStr { get; set; }
-
         public TwitterGeoLocation Location { get; set; }
 
         public TwitterPlace Place { get; set; }
@@ -58,7 +56,6 @@ namespace TwitterModule
             tweet.CreatedDate = status.CreatedDate;
             tweet.FavoriteCount = status.FavoriteCount;
             tweet.Id = status.Id;
-            tweet.IdStr = status.IdStr;
             tweet.Location = status.Location;
             tweet.Place = status.Place;
             tweet.QuotedStatus = status.QuotedStatus;

@@ -13,36 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 using System;
-using System.Collections.Generic;
 using System.Management.Automation;
 using System.Net;
 using System.Threading.Tasks;
-using TweetSharp;
 
 namespace TwitterModule
 {
     /// <summary>
-    /// Represents the twitter search commandlet.
+    /// Represents the twitter filter commandlet.
     /// </summary>
-    [Cmdlet(VerbsCommon.Get, @"TwitterSearch")]
-    [Alias(@"tws")]
-    public class TwitterSearch : PSCmdlet
+    [Cmdlet(VerbsCommon.Get, @"TwitterFilter")]
+    [Alias(@"twf")]
+    public class TwitterFilter : PSCmdlet
     {
-        public TwitterSearch()
+        public TwitterFilter()
         {
             ConnectionFile = @"twitter.con";
-            Query = @"#osint";
-            Limit = 5;
         }
 
-        protected override void BeginProcessing()
-        {
-            base.BeginProcessing();
-        }
-
-        [Parameter(Mandatory = false, 
+        [Parameter(Mandatory = false,
             HelpMessage = @"The path to the connection file.",
             ValueFromPipeline = true,
             ValueFromPipelineByPropertyName = true,
@@ -51,25 +41,6 @@ namespace TwitterModule
         [ValidateNotNullOrEmpty]
         public string ConnectionFile { get; set; }
 
-        [Parameter(Mandatory = false, HelpMessage = @"The query tags like #osint.",
-            ValueFromPipeline = true,
-            ValueFromPipelineByPropertyName = true,
-            Position = 1)]
-        [Alias(@"q")]
-        [ValidateNotNullOrEmpty]
-        public string Query { get; set; }
-
-        [Alias(@"l")]
-        [Parameter(Mandatory = false, HelpMessage = @"The maximum number of tweets.",
-            ValueFromPipeline = true,
-            ValueFromPipelineByPropertyName = true,
-            Position = 2)]
-        [ValidateNotNullOrEmpty]
-        public int Limit { get; set; }
-
-        /// <summary>
-        /// Parses the connection file for getting access to twitter.
-        /// </summary>
         protected override void ProcessRecord()
         {
             try
@@ -79,11 +50,7 @@ namespace TwitterModule
                 var service = connection.Service;
 
                 // Search twitter using await and IAsyncResult from the twitter API
-                var searchOptions = new SearchOptions();
-                searchOptions.Q = Query;
-                searchOptions.Count = Limit;
-                var statuses = new List<Tweet>(searchOptions.Count.Value);
-                Task.Factory.FromAsync(service.Search(searchOptions, (tweets, response) =>
+                Task.Factory.FromAsync(service.StreamFilter((artifact, response) =>
                 {
                     switch (response.StatusCode)
                     {
@@ -96,31 +63,17 @@ namespace TwitterModule
                             {
                                 throw new WebException(response.Error.Message);
                             }
-                            throw new WebException(@"Querying Twitter failed!");
+                            throw new WebException(@"Streaming Twitter failed!");
                     }
-
-                    // Add the tweets
-                    foreach (var status in tweets.Statuses)
-                    {
-                        statuses.Add(Tweet.Create(status));
-                    }
-                }), (result) =>
+                }), (response) =>
                 {
                     // TODO: End action
                 }).Wait();
-
-                // Write the tweets to the pipeline
-                WriteObject(statuses, true);
             }
             catch (Exception ex)
             {
                 WriteError(new ErrorRecord(ex, TwitterErrors.TwitterConnectionError.ToString(), ErrorCategory.ConnectionError, ConnectionFile));
             }
-        }
-
-        protected override void EndProcessing()
-        {
-            base.EndProcessing();
         }
     }
 }
