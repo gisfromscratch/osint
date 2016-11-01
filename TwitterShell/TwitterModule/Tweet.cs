@@ -27,7 +27,7 @@ namespace TwitterModule
         {
         }
 
-        public ITweeter Author { get; set; }
+        public string Author { get; set; }
 
         public DateTime CreatedDate { get; set; }
 
@@ -37,13 +37,13 @@ namespace TwitterModule
 
         public TwitterGeoLocation Location { get; set; }
 
-        public TwitterPlace Place { get; set; }
+        public string Place { get; set; }
 
-        public TwitterStatus QuotedStatus { get; set; }
+        public string QuotedStatus { get; set; }
 
         public int RetweetCount { get; set; }
 
-        public TwitterStatus RetweetStatus { get; set; }
+        public string RetweetStatus { get; set; }
 
         public string FullText { get; set; }
 
@@ -52,15 +52,24 @@ namespace TwitterModule
         internal static Tweet Create(TwitterStatus status)
         {
             var tweet = new Tweet();
-            tweet.Author = status.Author;
+            if (null != status.Author)
+            {
+                tweet.Author = status.Author.ScreenName;
+            }
             tweet.CreatedDate = status.CreatedDate;
             tweet.FavoriteCount = status.FavoriteCount;
             tweet.Id = status.Id;
             tweet.Location = status.Location;
-            tweet.Place = status.Place;
-            tweet.QuotedStatus = status.QuotedStatus;
+            if (null != status.Place)
+            {
+                tweet.Place = status.Place.Name;
+            }
+            tweet.QuotedStatus = status.QuotedStatus.Text;
             tweet.RetweetCount = status.RetweetCount;
-            tweet.RetweetStatus = status.RetweetedStatus;
+            if (null != status.RetweetedStatus)
+            {
+                tweet.RetweetStatus = status.RetweetedStatus.Text;
+            }
             tweet.FullText = status.FullText;
             tweet.Text = status.Text;
             return tweet;
