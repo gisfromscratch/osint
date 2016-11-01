@@ -1,0 +1,3 @@
+[submodule "modules/tweetmoasharp"]
+	path = modules/tweetmoasharp
+	url = https://github.com/gisfromscratch/tweetmoasharp.git
