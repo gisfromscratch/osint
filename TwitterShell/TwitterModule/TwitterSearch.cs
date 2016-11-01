@@ -15,7 +15,7 @@
  */
 
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Management.Automation;
 using System.Net;
 using System.Threading.Tasks;
@@ -82,7 +82,7 @@ namespace TwitterModule
                 var searchOptions = new SearchOptions();
                 searchOptions.Q = Query;
                 searchOptions.Count = Limit;
-                var statuses = new List<Tweet>(searchOptions.Count.Value);
+                var statuses = new BlockingCollection<Tweet>(searchOptions.Count.Value);
                 Task.Factory.FromAsync(service.Search(searchOptions, (tweets, response) =>
                 {
                     switch (response.StatusCode)

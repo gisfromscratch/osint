@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 using System;
+using System.Collections.Concurrent;
 using System.Management.Automation;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
+using TweetSharp;
 
 namespace TwitterModule
 {
@@ -30,6 +33,8 @@ namespace TwitterModule
         public TwitterFilter()
         {
             ConnectionFile = @"twitter.con";
+            Track = @"osint";
+            WaitTime = Timeout.Infinite;
         }
 
         [Parameter(Mandatory = false,
@@ -41,6 +46,22 @@ namespace TwitterModule
         [ValidateNotNullOrEmpty]
         public string ConnectionFile { get; set; }
 
+        [Parameter(Mandatory = false, HelpMessage = @"The track filter like aleppo,crimea,donbas.",
+            ValueFromPipeline = true,
+            ValueFromPipelineByPropertyName = true,
+            Position = 1)]
+        [Alias(@"tag")]
+        [ValidateNotNullOrEmpty]
+        public string Track { get; set; }
+
+        [Parameter(Mandatory = false, HelpMessage = @"The time to wait in [msec].",
+            ValueFromPipeline = true,
+            ValueFromPipelineByPropertyName = true,
+            Position = 2)]
+        [Alias(@"t")]
+        [ValidateNotNullOrEmpty]
+        public int WaitTime { get; set; }
+
         protected override void ProcessRecord()
         {
             try
@@ -50,25 +71,47 @@ namespace TwitterModule
                 var service = connection.Service;
 
                 // Search twitter using await and IAsyncResult from the twitter API
-                Task.Factory.FromAsync(service.StreamFilter((artifact, response) =>
+                var errors = new BlockingCollection<TwitterError>();
+                var statuses = new BlockingCollection<Tweet>();
+                Task.Factory.FromAsync(service.StreamFilterAndTrack(Track, (artifact, response) =>
                 {
+                    // TODO: There is always HTTP 0 returned!
+                    if (null == response.Error)
+                    {
+                        response.StatusCode = HttpStatusCode.OK;
+                    }
+
                     switch (response.StatusCode)
                     {
                         case HttpStatusCode.OK:
                             break;
 
                         default:
-                            // TODO: Delegate Exception back to the pipeline thread
                             if (null != response.Error)
                             {
-                                throw new WebException(response.Error.Message);
+                                errors.Add(response.Error);
                             }
-                            throw new WebException(@"Streaming Twitter failed!");
+                            else
+                            {
+                                errors.Add(new TwitterError { Message = @"Streaming Twitter failed!" });
+                            }
+                            return;
+                    }
+
+                    // Add the tweet
+                    var streamStatus = artifact as TwitterUserStreamStatus;
+                    if (null != streamStatus)
+                    {
+                        var status = streamStatus.Status;
+                        statuses.Add(Tweet.Create(status));
                     }
                 }), (response) =>
                 {
                     // TODO: End action
-                }).Wait();
+                }).Wait(WaitTime);
+
+                // Write the tweets to the pipeline
+                WriteObject(statuses, true);
             }
             catch (Exception ex)
             {
