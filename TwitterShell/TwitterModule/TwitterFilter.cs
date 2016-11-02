@@ -15,6 +15,7 @@
  */
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Management.Automation;
 using System.Net;
 using System.Threading;
@@ -73,6 +74,7 @@ namespace TwitterModule
                 // Search twitter using await and IAsyncResult from the twitter API
                 var errors = new BlockingCollection<TwitterError>();
                 var statuses = new BlockingCollection<Tweet>();
+                var resetEvent = new ManualResetEvent(false);
                 Task.Factory.FromAsync(service.StreamFilterAndTrack(Track, (artifact, response) =>
                 {
                     // TODO: There is always HTTP 0 returned!
@@ -95,6 +97,9 @@ namespace TwitterModule
                             {
                                 errors.Add(new TwitterError { Message = @"Streaming Twitter failed!" });
                             }
+
+                            // Activate the event
+                            resetEvent.Set();
                             return;
                     }
 
@@ -108,10 +113,20 @@ namespace TwitterModule
                 }), (response) =>
                 {
                     // TODO: End action
-                }).Wait(WaitTime);
+                });
+
+                // Wait for the event
+                resetEvent.WaitOne(WaitTime);
+                service.CancelStreaming();
 
                 // Write the tweets to the pipeline
                 WriteObject(statuses, true);
+
+                // Check the errors
+                if (errors.Any())
+                {
+                    WriteObject(errors, true);
+                }
             }
             catch (Exception ex)
             {

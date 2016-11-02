@@ -64,7 +64,10 @@ namespace TwitterModule
             {
                 tweet.Place = status.Place.Name;
             }
-            tweet.QuotedStatus = status.QuotedStatus.Text;
+            if (null != status.QuotedStatus)
+            {
+                tweet.QuotedStatus = status.QuotedStatus.Text;
+            }
             tweet.RetweetCount = status.RetweetCount;
             if (null != status.RetweetedStatus)
             {
